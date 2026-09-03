@@ -90,7 +90,14 @@
   <div class="subtitle">
     Student Attendance Scanner
   </div>
+<label for="activitySelect">
+  Select Activity
+</label>
 
+<select id="activitySelect">
+  <option value="">-- Select Activity --</option>
+  <option value="ACT-001">Pasiklaban Day 1 AM (ACT-001)</option>
+</select>
   <label for="scannerName">
     Scanner / Staff Name
   </label>
@@ -125,6 +132,17 @@
 
     const scannerName =
       document.getElementById("scannerName").value.trim();
+    const activityID =
+  document.getElementById("activitySelect").value;
+    if (!activityID) {
+
+  statusBox.textContent =
+    "Please select an activity first.";
+
+  processingScan = false;
+
+  return;
+}
 
     const statusBox =
       document.getElementById("statusBox");
@@ -187,13 +205,43 @@
     });
 
   }
-  function sendAttendance(qrID) {
+ function sendAttendance(qrID) {
 
   const scannerName =
     document.getElementById("scannerName").value.trim();
 
+  const activityID =
+    document.getElementById("activitySelect").value;
+
   const statusBox =
     document.getElementById("statusBox");
+
+
+  // Check activity
+
+  if (!activityID) {
+
+    statusBox.textContent =
+      "Please select an activity first.";
+
+    processingScan = false;
+
+    return;
+  }
+
+
+  // Check scanner name
+
+  if (!scannerName) {
+
+    statusBox.textContent =
+      "Please enter the Scanner / Staff Name.";
+
+    processingScan = false;
+
+    return;
+  }
+
 
   statusBox.textContent =
     "QR detected. Recording attendance...";
@@ -211,7 +259,7 @@
 
       qrID: qrID,
 
-      activityID: "ACT-001",
+      activityID: activityID,
 
       scannerName: scannerName
 
@@ -250,9 +298,6 @@
 
     }
 
-
-    // Prevent repeated camera scans
-    // for a short period.
 
     setTimeout(function() {
 
