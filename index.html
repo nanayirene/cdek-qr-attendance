@@ -117,6 +117,7 @@
 
   let scanner = null;
   let scannerRunning = false;
+  let processingScan = false;
   const APPS_SCRIPT_URL =
   "https://script.google.com/a/macros/sccpag.edu.ph/s/AKfycbwN_h-5HMraY20avqcGdPv3j4cYmtAEtUTLuviijQhG8H8AC4wn7SqPbUKkO5kS4xuiiA/exec";
 
@@ -155,12 +156,13 @@
       },
       function(decodedText) {
 
-        console.log("QR detected:", decodedText);
+  console.log("QR detected:", decodedText);
 
-        statusBox.textContent =
-          "QR detected: " + decodedText;
+  sendAttendance(
+    decodedText
+  );
 
-      },
+},
       function(errorMessage) {
 
         // Normal scanning feedback.
@@ -185,6 +187,103 @@
     });
 
   }
+  function sendAttendance(qrID) {
+
+  const scannerName =
+    document.getElementById("scannerName").value.trim();
+
+  const statusBox =
+    document.getElementById("statusBox");
+
+  statusBox.textContent =
+    "QR detected. Recording attendance...";
+
+
+  fetch(APPS_SCRIPT_URL, {
+
+    method: "POST",
+
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
+
+    body: JSON.stringify({
+
+      qrID: qrID,
+
+      activityID: "ACT-001",
+
+      scannerName: scannerName
+
+    })
+
+  })
+
+  .then(function(response) {
+
+    return response.json();
+
+  })
+
+  .then(function(result) {
+
+    console.log(
+      "Attendance result:",
+      result
+    );
+
+
+    if (result.success) {
+
+      statusBox.textContent =
+        result.message +
+        " | " +
+        (result.student || "");
+
+    }
+
+    else {
+
+      statusBox.textContent =
+        result.message ||
+        "Attendance could not be recorded.";
+
+    }
+
+
+    // Prevent repeated camera scans
+    // for a short period.
+
+    setTimeout(function() {
+
+      processingScan = false;
+
+    }, 1500);
+
+  })
+
+  .catch(function(error) {
+
+    console.error(
+      "Attendance connection error:",
+      error
+    );
+
+    statusBox.textContent =
+      "Connection error: " +
+      error.message;
+
+
+    setTimeout(function() {
+
+      processingScan = false;
+
+    }, 1500);
+
+  });
+
+}
+  
 
 </script>
 
