@@ -98,15 +98,26 @@
   <option value="">-- Select Activity --</option>
   <option value="ACT-001">Pasiklaban Day 1 AM (ACT-001)</option>
 </select>
-  <label for="scannerName">
-    Scanner / Staff Name
-  </label>
+  <label for="activitySelect">
+  Select Activity
+</label>
 
-  <input
-    type="text"
-    id="scannerName"
-    placeholder="Enter scanner name"
-  >
+<select id="activitySelect">
+  <option value="">-- Select Activity --</option>
+  <option value="ACT-001">
+    Pasiklaban Day 1 AM (ACT-001)
+  </option>
+</select>
+
+<label for="scannerName">
+  Scanner / Staff Name
+</label>
+
+<input
+  type="text"
+  id="scannerName"
+  placeholder="Enter scanner name"
+>
 
   <button onclick="startScanner()">
     📷 Start Camera Scanner
