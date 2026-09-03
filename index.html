@@ -90,34 +90,27 @@
   <div class="subtitle">
     Student Attendance Scanner
   </div>
-<label for="activitySelect">
-  Select Activity
-</label>
 
-<select id="activitySelect">
-  <option value="">-- Select Activity --</option>
-  <option value="ACT-001">Pasiklaban Day 1 AM (ACT-001)</option>
-</select>
   <label for="activitySelect">
-  Select Activity
-</label>
+    Select Activity
+  </label>
 
-<select id="activitySelect">
-  <option value="">-- Select Activity --</option>
-  <option value="ACT-001">
-    Pasiklaban Day 1 AM (ACT-001)
-  </option>
-</select>
+  <select id="activitySelect">
+    <option value="">-- Select Activity --</option>
+    <option value="ACT-001">
+      Pasiklaban Day 1 AM (ACT-001)
+    </option>
+  </select>
 
-<label for="scannerName">
-  Scanner / Staff Name
-</label>
+  <label for="scannerName">
+    Scanner / Staff Name
+  </label>
 
-<input
-  type="text"
-  id="scannerName"
-  placeholder="Enter scanner name"
->
+  <input
+    type="text"
+    id="scannerName"
+    placeholder="Enter scanner name"
+  >
 
   <button onclick="startScanner()">
     📷 Start Camera Scanner
@@ -136,27 +129,31 @@
   let scanner = null;
   let scannerRunning = false;
   let processingScan = false;
+
   const APPS_SCRIPT_URL =
-  "https://script.google.com/a/macros/sccpag.edu.ph/s/AKfycbwN_h-5HMraY20avqcGdPv3j4cYmtAEtUTLuviijQhG8H8AC4wn7SqPbUKkO5kS4xuiiA/exec";
+    "https://script.google.com/a/macros/sccpag.edu.ph/s/AKfycbwN_h-5HMraY20avqcGdPv3j4cYmtAEtUTLuviijQhG8H8AC4wn7SqPbUKkO5kS4xuiiA/exec";
+
 
   function startScanner() {
 
     const scannerName =
       document.getElementById("scannerName").value.trim();
+
     const activityID =
-  document.getElementById("activitySelect").value;
-    if (!activityID) {
-
-  statusBox.textContent =
-    "Please select an activity first.";
-
-  processingScan = false;
-
-  return;
-}
+      document.getElementById("activitySelect").value;
 
     const statusBox =
       document.getElementById("statusBox");
+
+
+    if (!activityID) {
+
+      statusBox.textContent =
+        "Please select an activity first.";
+
+      return;
+    }
+
 
     if (!scannerName) {
 
@@ -166,11 +163,14 @@
       return;
     }
 
+
     if (scannerRunning) {
       return;
     }
 
+
     scanner = new Html5Qrcode("reader");
+
 
     scanner.start(
       {
@@ -183,20 +183,33 @@
           height: 250
         }
       },
+
       function(decodedText) {
 
-  console.log("QR detected:", decodedText);
+        if (processingScan) {
+          return;
+        }
 
-  sendAttendance(
-    decodedText
-  );
+        processingScan = true;
 
-},
+        console.log(
+          "QR detected:",
+          decodedText
+        );
+
+        sendAttendance(decodedText);
+
+      },
+
       function(errorMessage) {
 
-        // Normal scanning feedback.
+        // Normal QR scanning feedback.
+        // No action needed here.
+
       }
+
     )
+
     .then(function() {
 
       scannerRunning = true;
@@ -205,9 +218,13 @@
         "Camera is active. Point the camera at a student's QR code.";
 
     })
+
     .catch(function(error) {
 
-      console.error("Camera error:", error);
+      console.error(
+        "Camera error:",
+        error
+      );
 
       statusBox.textContent =
         "Camera error: " +
@@ -216,57 +233,47 @@
     });
 
   }
- function sendAttendance(qrID) {
-
-  const scannerName =
-    document.getElementById("scannerName").value.trim();
-
-  const activityID =
-    document.getElementById("activitySelect").value;
-
-  const statusBox =
-    document.getElementById("statusBox");
 
 
-  // Check activity
+  function sendAttendance(qrID) {
 
-  if (!activityID) {
+    const scannerName =
+      document.getElementById("scannerName").value.trim();
+
+    const activityID =
+      document.getElementById("activitySelect").value;
+
+    const statusBox =
+      document.getElementById("statusBox");
+
+
+    if (!activityID) {
+
+      statusBox.textContent =
+        "Please select an activity first.";
+
+      processingScan = false;
+
+      return;
+    }
+
+
+    if (!scannerName) {
+
+      statusBox.textContent =
+        "Please enter the Scanner / Staff Name.";
+
+      processingScan = false;
+
+      return;
+    }
+
 
     statusBox.textContent =
-      "Please select an activity first.";
-
-    processingScan = false;
-
-    return;
-  }
+      "QR detected. Recording attendance...";
 
 
-  // Check scanner name
-
-  if (!scannerName) {
-
-    statusBox.textContent =
-      "Please enter the Scanner / Staff Name.";
-
-    processingScan = false;
-
-    return;
-  }
-
-
-  statusBox.textContent =
-    "QR detected. Recording attendance...";
-
-
-  fetch(APPS_SCRIPT_URL, {
-
-    method: "POST",
-
-    headers: {
-      "Content-Type": "text/plain;charset=utf-8"
-    },
-
-    body: JSON.stringify({
+    const attendanceData = {
 
       qrID: qrID,
 
@@ -274,72 +281,69 @@
 
       scannerName: scannerName
 
+    };
+
+
+    /*
+      Send the request without trying to read
+      the Apps Script response.
+
+      This avoids the cross-origin "Load failed"
+      problem between GitHub Pages and Apps Script.
+    */
+
+    fetch(APPS_SCRIPT_URL, {
+
+      method: "POST",
+
+      mode: "no-cors",
+
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+
+      body: JSON.stringify(attendanceData)
+
     })
 
-  })
-
-  .then(function(response) {
-
-    return response.json();
-
-  })
-
-  .then(function(result) {
-
-    console.log(
-      "Attendance result:",
-      result
-    );
-
-
-    if (result.success) {
+    .then(function() {
 
       statusBox.textContent =
-        result.message +
-        " | " +
-        (result.student || "");
+        "Attendance request sent successfully.";
 
-    }
+      console.log(
+        "Attendance request sent:",
+        attendanceData
+      );
 
-    else {
+
+      setTimeout(function() {
+
+        processingScan = false;
+
+      }, 1500);
+
+    })
+
+    .catch(function(error) {
+
+      console.error(
+        "Attendance connection error:",
+        error
+      );
 
       statusBox.textContent =
-        result.message ||
-        "Attendance could not be recorded.";
+        "Connection error. Please try again.";
 
-    }
+      setTimeout(function() {
 
+        processingScan = false;
 
-    setTimeout(function() {
+      }, 1500);
 
-      processingScan = false;
+    });
 
-    }, 1500);
-
-  })
-
-  .catch(function(error) {
-
-    console.error(
-      "Attendance connection error:",
-      error
-    );
-
-    statusBox.textContent =
-      "Connection error: " +
-      error.message;
-
-
-    setTimeout(function() {
-
-      processingScan = false;
-
-    }, 1500);
-
-  });
-
-}
-  
+  }
 
 </script>
 
