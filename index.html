@@ -274,30 +274,14 @@
 
 
     const attendanceData = {
-
       qrID: qrID,
-
       activityID: activityID,
-
       scannerName: scannerName
 
     };
-
-
-    /*
-      Send the request without trying to read
-      the Apps Script response.
-
-      This avoids the cross-origin "Load failed"
-      problem between GitHub Pages and Apps Script.
-    */
-
     fetch(APPS_SCRIPT_URL, {
-
       method: "POST",
-
       mode: "no-cors",
-
       headers: {
         "Content-Type": "text/plain;charset=utf-8"
       },
