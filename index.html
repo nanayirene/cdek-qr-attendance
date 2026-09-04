@@ -1,69 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CdeK Attendance Scanner</title>
 
-  <title>CdeK QR Attendance Scanner</title>
-
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #f4f6f8;
       margin: 0;
       padding: 20px;
-      background: #FFD700;
+      text-align: center;
     }
 
     .container {
-      max-width: 500px;
+      max-width: 600px;
       margin: auto;
       background: white;
-      padding: 25px;
+      padding: 20px;
       border-radius: 15px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 3px 15px rgba(0,0,0,0.1);
     }
 
     h1 {
-      text-align: center;
       margin-bottom: 5px;
     }
 
     .subtitle {
-      text-align: center;
       color: #666;
-      margin-bottom: 25px;
+      margin-bottom: 20px;
     }
 
     label {
       display: block;
-      margin-top: 15px;
-      margin-bottom: 6px;
+      text-align: left;
+      margin-top: 12px;
       font-weight: bold;
     }
 
-    select,
-    input {
+    input,
+    select {
       width: 100%;
+      box-sizing: border-box;
       padding: 12px;
-      font-size: 16px;
+      margin-top: 5px;
       border: 1px solid #ccc;
       border-radius: 8px;
-      box-sizing: border-box;
-    }
-
-    button {
-      width: 100%;
-      padding: 13px;
-      margin-top: 15px;
       font-size: 16px;
-      font-weight: bold;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      background: #198754;
-      color: white;
     }
 
     #reader {
@@ -71,12 +57,58 @@
       margin-top: 20px;
     }
 
-    .status {
+    button {
+      margin-top: 15px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #startButton {
+      background: #1a73e8;
+      color: white;
+    }
+
+    #stopButton {
+      background: #777;
+      color: white;
+      display: none;
+    }
+
+    #result {
       margin-top: 20px;
       padding: 15px;
       border-radius: 10px;
-      background: #eee;
-      text-align: center;
+      background: #f1f3f4;
+      min-height: 30px;
+    }
+
+    .success {
+      background: #d9f7df !important;
+      color: #176b2c;
+    }
+
+    .error {
+      background: #fde0e0 !important;
+      color: #a00000;
+    }
+
+    .info {
+      background: #e3f2fd !important;
+      color: #155a8a;
+    }
+
+    .student-name {
+      font-size: 22px;
+      font-weight: bold;
+      margin: 8px 0;
+    }
+
+    .action {
+      font-size: 18px;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -85,248 +117,584 @@
 
 <div class="container">
 
-  <h1>CdeK QR Attendance</h1>
+  <h1>CdeK Attendance Scanner</h1>
+  <div class="subtitle">QR Attendance Monitoring System</div>
 
-  <div class="subtitle">
-    Student Attendance Scanner
-  </div>
-
-  <label for="activitySelect">
-    Select Activity
-  </label>
-
-  <select id="activitySelect">
-    <option value="">-- Select Activity --</option>
-    <option value="ACT-001">
-      Pasiklaban Day 1 AM (ACT-001)
-    </option>
-  </select>
-
-  <label for="scannerName">
-    Scanner / Staff Name
-  </label>
-
+  <label for="scannerName">Scanner Name</label>
   <input
     type="text"
     id="scannerName"
     placeholder="Enter scanner name"
   >
 
-  <button onclick="startScanner()">
-    📷 Start Camera Scanner
+  <label for="activity">Activity</label>
+  <select id="activity">
+    <option value="">Loading activities...</option>
+  </select>
+
+  <button id="startButton" onclick="startScanner()">
+    Start Scanner
+  </button>
+
+  <button id="stopButton" onclick="stopScanner()">
+    Stop Scanner
   </button>
 
   <div id="reader"></div>
 
-  <div id="statusBox" class="status">
-    Ready to start scanner.
+  <div id="result" class="info">
+    Ready.
   </div>
 
 </div>
 
 <script>
 
-  let scanner = null;
+  // =========================================================
+  // GOOGLE APPS SCRIPT WEB APP
+  // =========================================================
+
+  const WEB_APP_URL =
+    "https://script.google.com/macros/s/AKfycbzoWNfOgXN-BoUEvotDPlMvyMO7_HBnnPKVcVAJnEHlS7YkSisKxkcgENkamWO0USwjhA/exec";
+
+
+  // =========================================================
+  // VARIABLES
+  // =========================================================
+
+  let html5QrCode = null;
   let scannerRunning = false;
   let processingScan = false;
 
- const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbwN_h-5HMraY20avqcGdPv3j4cYmtAEtUTLuviijQhG8H8AC4wn7SqPbUKkO5kS4xuiiA/exec";
 
+  // =========================================================
+  // PAGE LOAD
+  // =========================================================
+
+  window.onload = function () {
+
+    const savedScannerName =
+      localStorage.getItem("cdekScannerName");
+
+    if (savedScannerName) {
+      document.getElementById("scannerName").value =
+        savedScannerName;
+    }
+
+    loadActivities();
+  };
+
+
+  // =========================================================
+  // LOAD ACTIVE ACTIVITIES
+  // =========================================================
+
+  function loadActivities() {
+
+    showResult(
+      "Loading active activities...",
+      "info"
+    );
+
+    const callbackName =
+      "activityCallback_" + Date.now();
+
+    window[callbackName] = function(response) {
+
+      try {
+
+        if (!response || !response.success) {
+
+          showResult(
+            response && response.message
+              ? response.message
+              : "Unable to load activities.",
+            "error"
+          );
+
+          return;
+        }
+
+        const select =
+          document.getElementById("activity");
+
+        select.innerHTML = "";
+
+        if (!response.activities ||
+            response.activities.length === 0) {
+
+          const option =
+            document.createElement("option");
+
+          option.value = "";
+          option.textContent =
+            "No active activities";
+
+          select.appendChild(option);
+
+          showResult(
+            "No active activities found.",
+            "error"
+          );
+
+          return;
+        }
+
+        response.activities.forEach(function(activity) {
+
+          const option =
+            document.createElement("option");
+
+          option.value = activity.activityID;
+
+          option.textContent =
+            activity.activityID +
+            " - " +
+            activity.activityName;
+
+          select.appendChild(option);
+
+        });
+
+        showResult(
+          "Activity loaded. Ready to scan.",
+          "success"
+        );
+
+      } catch (error) {
+
+        showResult(
+          "Error loading activities.",
+          "error"
+        );
+
+      } finally {
+
+        delete window[callbackName];
+
+        const script =
+          document.getElementById(callbackName);
+
+        if (script) {
+          script.remove();
+        }
+
+      }
+    };
+
+
+    const script =
+      document.createElement("script");
+
+    script.id = callbackName;
+
+    script.src =
+      WEB_APP_URL +
+      "?action=activities" +
+      "&callback=" +
+      callbackName +
+      "&_=" +
+      Date.now();
+
+    script.onerror = function() {
+
+      showResult(
+        "Could not connect to the attendance server.",
+        "error"
+      );
+
+      delete window[callbackName];
+      script.remove();
+
+    };
+
+    document.body.appendChild(script);
+  }
+
+
+  // =========================================================
+  // START SCANNER
+  // =========================================================
 
   function startScanner() {
-
-    const scannerName =
-      document.getElementById("scannerName").value.trim();
-
-    const activityID =
-      document.getElementById("activitySelect").value;
-
-    const statusBox =
-      document.getElementById("statusBox");
-
-
-    if (!activityID) {
-
-      statusBox.textContent =
-        "Please select an activity first.";
-
-      return;
-    }
-
-
-    if (!scannerName) {
-
-      statusBox.textContent =
-        "Please enter the Scanner / Staff Name.";
-
-      return;
-    }
-
 
     if (scannerRunning) {
       return;
     }
 
-
-    scanner = new Html5Qrcode("reader");
-
-
-    scanner.start(
-      {
-        facingMode: "environment"
-      },
-      {
-        fps: 10,
-        qrbox: {
-          width: 250,
-          height: 250
-        }
-      },
-
-      function(decodedText) {
-
-        if (processingScan) {
-          return;
-        }
-
-        processingScan = true;
-
-        console.log(
-          "QR detected:",
-          decodedText
-        );
-
-        sendAttendance(decodedText);
-
-      },
-
-      function(errorMessage) {
-
-        // Normal QR scanning feedback.
-        // No action needed here.
-
-      }
-
-    )
-
-    .then(function() {
-
-      scannerRunning = true;
-
-      statusBox.textContent =
-        "Camera is active. Point the camera at a student's QR code.";
-
-    })
-
-    .catch(function(error) {
-
-      console.error(
-        "Camera error:",
-        error
-      );
-
-      statusBox.textContent =
-        "Camera error: " +
-        (error.message || error.name || error);
-
-    });
-
-  }
-
-
-  function sendAttendance(qrID) {
-
     const scannerName =
-      document.getElementById("scannerName").value.trim();
+      document.getElementById("scannerName")
+        .value
+        .trim();
 
     const activityID =
-      document.getElementById("activitySelect").value;
-
-    const statusBox =
-      document.getElementById("statusBox");
-
-
-    if (!activityID) {
-
-      statusBox.textContent =
-        "Please select an activity first.";
-
-      processingScan = false;
-
-      return;
-    }
-
+      document.getElementById("activity")
+        .value;
 
     if (!scannerName) {
 
-      statusBox.textContent =
-        "Please enter the Scanner / Staff Name.";
+      showResult(
+        "Please enter the scanner name first.",
+        "error"
+      );
+
+      document.getElementById("scannerName").focus();
+
+      return;
+    }
+
+    if (!activityID) {
+
+      showResult(
+        "Please select an activity.",
+        "error"
+      );
+
+      return;
+    }
+
+    localStorage.setItem(
+      "cdekScannerName",
+      scannerName
+    );
+
+    processingScan = false;
+
+    html5QrCode =
+      new Html5Qrcode("reader");
+
+    const config = {
+      fps: 10,
+      qrbox: {
+        width: 250,
+        height: 250
+      }
+    };
+
+    html5QrCode
+      .start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess,
+        onScanFailure
+      )
+      .then(function() {
+
+        scannerRunning = true;
+
+        document.getElementById(
+          "startButton"
+        ).style.display = "none";
+
+        document.getElementById(
+          "stopButton"
+        ).style.display = "inline-block";
+
+        showResult(
+          "Scanner is active. Scan a student's QR code.",
+          "info"
+        );
+
+      })
+      .catch(function(error) {
+
+        console.error(error);
+
+        showResult(
+          "Camera could not start. Please allow camera access and try again.",
+          "error"
+        );
+
+        html5QrCode = null;
+      });
+  }
+
+
+  // =========================================================
+  // STOP SCANNER
+  // =========================================================
+
+  function stopScanner() {
+
+    if (!html5QrCode || !scannerRunning) {
+      return;
+    }
+
+    html5QrCode
+      .stop()
+      .then(function() {
+
+        scannerRunning = false;
+
+        document.getElementById(
+          "startButton"
+        ).style.display = "inline-block";
+
+        document.getElementById(
+          "stopButton"
+        ).style.display = "none";
+
+        showResult(
+          "Scanner stopped.",
+          "info"
+        );
+
+      })
+      .catch(function(error) {
+
+        console.error(error);
+
+      });
+  }
+
+
+  // =========================================================
+  // QR SCAN SUCCESS
+  // =========================================================
+
+  function onScanSuccess(decodedText) {
+
+    if (processingScan) {
+      return;
+    }
+
+    processingScan = true;
+
+    console.log(
+      "QR scanned:",
+      decodedText
+    );
+
+    const qrID =
+      decodedText.trim();
+
+    const scannerName =
+      document.getElementById("scannerName")
+        .value
+        .trim();
+
+    const activityID =
+      document.getElementById("activity")
+        .value;
+
+    if (!qrID) {
 
       processingScan = false;
 
       return;
     }
 
+    showResult(
+      "Checking attendance...",
+      "info"
+    );
 
-    statusBox.textContent =
-      "QR detected. Recording attendance...";
+    sendAttendance(
+      qrID,
+      activityID,
+      scannerName
+    );
+  }
 
 
-    const attendanceData = {
-      qrID: qrID,
-      activityID: activityID,
-      scannerName: scannerName
+  // =========================================================
+  // QR SCAN FAILURE
+  // =========================================================
 
+  function onScanFailure(error) {
+    // Normal behavior while looking for a QR code.
+  }
+
+
+  // =========================================================
+  // SEND ATTENDANCE
+  // =========================================================
+
+  function sendAttendance(
+    qrID,
+    activityID,
+    scannerName
+  ) {
+
+    const callbackName =
+      "scanCallback_" + Date.now();
+
+    window[callbackName] =
+      function(response) {
+
+        try {
+
+          if (!response) {
+
+            showResult(
+              "No response from the server.",
+              "error"
+            );
+
+            return;
+          }
+
+          if (response.success) {
+
+            let message = "";
+
+            if (response.studentName) {
+
+              message +=
+                '<div class="student-name">' +
+                escapeHtml(response.studentName) +
+                "</div>";
+            }
+
+            if (response.action) {
+
+              message +=
+                '<div class="action">' +
+                escapeHtml(response.action) +
+                "</div>";
+            }
+
+            if (response.status) {
+
+              message +=
+                "<div>Status: " +
+                escapeHtml(response.status) +
+                "</div>";
+            }
+
+            if (response.time) {
+
+              message +=
+                "<div>Time: " +
+                escapeHtml(response.time) +
+                "</div>";
+            }
+
+            showResultHtml(
+              message,
+              "success"
+            );
+
+          } else {
+
+            showResult(
+              response.message ||
+              "Attendance was not recorded.",
+              "error"
+            );
+          }
+
+        } catch (error) {
+
+          console.error(error);
+
+          showResult(
+            "An error occurred while processing the scan.",
+            "error"
+          );
+
+        } finally {
+
+          delete window[callbackName];
+
+          const script =
+            document.getElementById(callbackName);
+
+          if (script) {
+            script.remove();
+          }
+
+          // Allow another scan after a short delay.
+          setTimeout(function() {
+
+            processingScan = false;
+
+          }, 1500);
+        }
+      };
+
+
+    const url =
+      WEB_APP_URL +
+      "?action=scan" +
+      "&qrID=" +
+      encodeURIComponent(qrID) +
+      "&activityID=" +
+      encodeURIComponent(activityID) +
+      "&scannerName=" +
+      encodeURIComponent(scannerName) +
+      "&callback=" +
+      encodeURIComponent(callbackName) +
+      "&_=" +
+      Date.now();
+
+
+    const script =
+      document.createElement("script");
+
+    script.id = callbackName;
+
+    script.src = url;
+
+    script.onerror = function() {
+
+      showResult(
+        "Could not connect to the attendance server.",
+        "error"
+      );
+
+      delete window[callbackName];
+
+      script.remove();
+
+      setTimeout(function() {
+        processingScan = false;
+      }, 1500);
     };
-    fetch(APPS_SCRIPT_URL, {
-      method: "POST",
-      mode: "no-cors",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
 
-      body: JSON.stringify(attendanceData)
-
-    })
-
-    .then(function() {
-
-      statusBox.textContent =
-        "Attendance request sent successfully.";
-
-      console.log(
-        "Attendance request sent:",
-        attendanceData
-      );
+    document.body.appendChild(script);
+  }
 
 
-      setTimeout(function() {
+  // =========================================================
+  // DISPLAY RESULT
+  // =========================================================
 
-        processingScan = false;
+  function showResult(message, type) {
 
-      }, 1500);
+    const result =
+      document.getElementById("result");
 
-    })
+    result.className = type;
 
-    .catch(function(error) {
+    result.textContent = message;
+  }
 
-      console.error(
-        "Attendance connection error:",
-        error
-      );
 
-      statusBox.textContent =
-        "Connection error. Please try again.";
+  function showResultHtml(message, type) {
 
-      setTimeout(function() {
+    const result =
+      document.getElementById("result");
 
-        processingScan = false;
+    result.className = type;
 
-      }, 1500);
+    result.innerHTML = message;
+  }
 
-    });
 
+  // =========================================================
+  // SECURITY / DISPLAY HELPER
+  // =========================================================
+
+  function escapeHtml(text) {
+
+    const div =
+      document.createElement("div");
+
+    div.textContent =
+      text == null ? "" : String(text);
+
+    return div.innerHTML;
   }
 
 </script>
