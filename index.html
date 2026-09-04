@@ -577,12 +577,37 @@
 
           } else {
 
-            showResult(
-              response.message ||
-              "Attendance was not recorded.",
-              "error"
-            );
-          }
+  let message = "";
+
+  if (response.studentName) {
+
+    message +=
+      '<div class="student-name">' +
+      escapeHtml(response.studentName) +
+      "</div>";
+  }
+
+  if (response.action) {
+
+    message +=
+      '<div class="action">' +
+      escapeHtml(response.action) +
+      "</div>";
+  }
+
+  message +=
+    "<div>" +
+    escapeHtml(
+      response.message ||
+      "Attendance was not recorded."
+    ) +
+    "</div>";
+
+  showResultHtml(
+    message,
+    "error"
+  );
+}
 
         } catch (error) {
 
