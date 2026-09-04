@@ -562,13 +562,13 @@
                 "</div>";
             }
 
-            if (response.time) {
+           if (response.time) {
 
-              message +=
-                "<div>Time: " +
-                escapeHtml(response.time) +
-                "</div>";
-            }
+  message +=
+    "<div>Time: " +
+    formatAttendanceTime(response.time) +
+    "</div>";
+}
 
             showResultHtml(
               message,
@@ -685,7 +685,21 @@
   // =========================================================
   // SECURITY / DISPLAY HELPER
   // =========================================================
+function formatAttendanceTime(timestamp) {
 
+  const date = new Date(Number(timestamp));
+
+  if (isNaN(date.getTime())) {
+    return escapeHtml(timestamp);
+  }
+
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  });
+}
   function escapeHtml(text) {
 
     const div =
