@@ -110,6 +110,37 @@
       font-size: 18px;
       font-weight: bold;
     }
+
+    #loginScreen {
+      display: block;
+    }
+
+    #scannerApp {
+      display: none;
+    }
+
+    #loginButton {
+      background: #1a73e8;
+      color: white;
+      width: 100%;
+    }
+
+    #logoutButton {
+      background: #777;
+      color: white;
+      float: right;
+      margin-top: 0;
+    }
+
+    .clear {
+      clear: both;
+    }
+
+    .login-note {
+      margin-top: 12px;
+      color: #666;
+      font-size: 14px;
+    }
   </style>
 </head>
 
@@ -117,33 +148,69 @@
 
 <div class="container">
 
-  <h1>CdeK Attendance Scanner</h1>
-  <div class="subtitle">QR Attendance Monitoring System</div>
+  <div id="loginScreen">
 
-  <label for="scannerName">Scanner Name</label>
-  <input
-    type="text"
-    id="scannerName"
-    placeholder="Enter scanner name"
-  >
+    <h1>CdeK Attendance Scanner</h1>
+    <div class="subtitle">Authorized Scanner Access</div>
 
-  <label for="activity">Activity</label>
-  <select id="activity">
-    <option value="">Loading activities...</option>
-  </select>
+    <label for="scannerPassword">Scanner Password</label>
+    <input
+      type="password"
+      id="scannerPassword"
+      placeholder="Enter scanner password"
+      autocomplete="current-password"
+    >
 
-  <button id="startButton" onclick="startScanner()">
-    Start Scanner
-  </button>
+    <button id="loginButton" onclick="loginScanner()">
+      🔐 Unlock Scanner
+    </button>
 
-  <button id="stopButton" onclick="stopScanner()">
-    Stop Scanner
-  </button>
+    <div id="loginResult" class="info">
+      Please enter the scanner password.
+    </div>
 
-  <div id="reader"></div>
+    <div class="login-note">
+      This scanner is restricted to authorized staff.
+    </div>
 
-  <div id="result" class="info">
-    Ready.
+  </div>
+
+  <div id="scannerApp">
+
+    <button id="logoutButton" onclick="logoutScanner()">
+      Log Out
+    </button>
+    <div class="clear"></div>
+
+    <h1>CdeK Attendance Scanner</h1>
+    <div class="subtitle">QR Attendance Monitoring System</div>
+
+    <label for="scannerName">Scanner Name</label>
+    <input
+      type="text"
+      id="scannerName"
+      placeholder="Enter scanner name"
+    >
+
+    <label for="activity">Activity</label>
+    <select id="activity">
+      <option value="">Loading activities...</option>
+    </select>
+
+    <button id="startButton" onclick="startScanner()">
+      Start Scanner
+    </button>
+
+    <button id="stopButton" onclick="stopScanner()">
+      Stop Scanner
+    </button>
+
+    <div id="reader"></div>
+
+    <div id="result" class="info">
+      Ready.
+    </div>
+
   </div>
 
 </div>
@@ -165,6 +232,8 @@
   let html5QrCode = null;
   let scannerRunning = false;
   let processingScan = false;
+  let scannerToken = null;
+  let loginInProgress = false;
 
 
   // =========================================================
@@ -181,8 +250,186 @@
         savedScannerName;
     }
 
-    loadActivities();
+    document
+      .getElementById("scannerPassword")
+      .focus();
   };
+
+
+
+  // =========================================================
+  // SCANNER LOGIN
+  // =========================================================
+
+  function loginScanner() {
+
+    if (loginInProgress) {
+      return;
+    }
+
+    const password =
+      document.getElementById("scannerPassword")
+        .value;
+
+    if (!password) {
+      showLoginResult(
+        "Please enter the scanner password.",
+        "error"
+      );
+      return;
+    }
+
+    loginInProgress = true;
+
+    showLoginResult(
+      "Checking password...",
+      "info"
+    );
+
+    const callbackName =
+      "loginCallback_" + Date.now();
+
+    window[callbackName] =
+      function(response) {
+
+        try {
+
+          if (
+            response &&
+            response.success &&
+            response.token
+          ) {
+
+            scannerToken =
+              response.token;
+
+            document
+              .getElementById("loginScreen")
+              .style.display = "none";
+
+            document
+              .getElementById("scannerApp")
+              .style.display = "block";
+
+            document
+              .getElementById("scannerPassword")
+              .value = "";
+
+            showResult(
+              "Access granted. Loading active activities...",
+              "info"
+            );
+
+            loadActivities();
+
+          } else {
+
+            showLoginResult(
+              response && response.message
+                ? response.message
+                : "Unable to unlock scanner.",
+              "error"
+            );
+
+          }
+
+        } catch (error) {
+
+          console.error(error);
+
+          showLoginResult(
+            "Unable to unlock scanner.",
+            "error"
+          );
+
+        } finally {
+
+          delete window[callbackName];
+
+          const script =
+            document.getElementById(callbackName);
+
+          if (script) {
+            script.remove();
+          }
+
+          loginInProgress = false;
+        }
+      };
+
+    const script =
+      document.createElement("script");
+
+    script.id = callbackName;
+
+    script.src =
+      WEB_APP_URL +
+      "?action=login" +
+      "&password=" +
+      encodeURIComponent(password) +
+      "&callback=" +
+      encodeURIComponent(callbackName) +
+      "&_=" +
+      Date.now();
+
+    script.onerror = function() {
+
+      showLoginResult(
+        "Could not connect to the attendance server.",
+        "error"
+      );
+
+      delete window[callbackName];
+      script.remove();
+
+      loginInProgress = false;
+    };
+
+    document.body.appendChild(script);
+  }
+
+
+  function showLoginResult(message, type) {
+
+    const result =
+      document.getElementById("loginResult");
+
+    result.className = type;
+    result.textContent = message;
+  }
+
+
+  function logoutScanner() {
+
+    if (scannerRunning) {
+      stopScanner();
+    }
+
+    scannerToken = null;
+
+    document
+      .getElementById("scannerApp")
+      .style.display = "none";
+
+    document
+      .getElementById("loginScreen")
+      .style.display = "block";
+
+    document
+      .getElementById("scannerPassword")
+      .value = "";
+
+    showLoginResult(
+      "Logged out. Please enter the scanner password.",
+      "info"
+    );
+
+    setTimeout(function() {
+      document
+        .getElementById("scannerPassword")
+        .focus();
+    }, 100);
+  }
 
 
   // =========================================================
@@ -204,6 +451,14 @@
       try {
 
         if (!response || !response.success) {
+
+          if (
+            response &&
+            response.message === "Scanner login required."
+          ) {
+            logoutScanner();
+            return;
+          }
 
           showResult(
             response && response.message
@@ -291,6 +546,8 @@
     script.src =
       WEB_APP_URL +
       "?action=activities" +
+      "&token=" +
+      encodeURIComponent(scannerToken || "") +
       "&callback=" +
       callbackName +
       "&_=" +
@@ -577,37 +834,19 @@
 
           } else {
 
-  let message = "";
+            if (
+              response.message === "Scanner login required."
+            ) {
+              logoutScanner();
+              return;
+            }
 
-  if (response.studentName) {
-
-    message +=
-      '<div class="student-name">' +
-      escapeHtml(response.studentName) +
-      "</div>";
-  }
-
-  if (response.action) {
-
-    message +=
-      '<div class="action">' +
-      escapeHtml(response.action) +
-      "</div>";
-  }
-
-  message +=
-    "<div>" +
-    escapeHtml(
-      response.message ||
-      "Attendance was not recorded."
-    ) +
-    "</div>";
-
-  showResultHtml(
-    message,
-    "error"
-  );
-}
+            showResult(
+              response.message ||
+              "Attendance was not recorded.",
+              "error"
+            );
+          }
 
         } catch (error) {
 
@@ -642,6 +881,8 @@
     const url =
       WEB_APP_URL +
       "?action=scan" +
+      "&token=" +
+      encodeURIComponent(scannerToken || "") +
       "&qrID=" +
       encodeURIComponent(qrID) +
       "&activityID=" +
